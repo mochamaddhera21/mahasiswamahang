@@ -1,0 +1,47 @@
+mkdir -p .github/workflows
+cat > .github/workflows/release.yml <<'EOF'
+name: Build & Release ZIP
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci || echo "No package.json or npm install failed"
+
+      - name: Build (optional)
+        run: npm run build || echo "No build script configured"
+
+      - name: Create ZIP artifact
+        run: |
+          ZIP_NAME="magang-backend-${{ github.ref_name }}.zip"
+          zip -r "$ZIP_NAME" . -x "node_modules/*" "dist/*" ".git/*" ".github/*" || true
+          ls -lh "$ZIP_NAME"
+        shell: bash
+
+      - name: Create GitHub release and upload ZIP
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          files: magang-backend-${{ github.ref_name }}.zip
+          draft: false
+          prerelease: false
+EOF
+
+git add .github/workflows/release.yml
+git commit -m "Add GitHub Actions workflow for automated ZIP release"
+git push origin main
